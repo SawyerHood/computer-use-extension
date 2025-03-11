@@ -15,7 +15,9 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.0",
     "@tailwindcss/vite": "^4.0.13",
+    "lucide-react": "^0.479.0",
     "openai": "^4.87.2",
     "puppeteer-core": "^24.4.0",
     "react": "^19.0.0",
