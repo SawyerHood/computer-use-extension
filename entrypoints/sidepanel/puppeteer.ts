@@ -22,14 +22,12 @@ export async function createPuppeteer() {
 
   const close = async () => {
     try {
-      await page.close();
-    } catch {}
-    try {
-      await pupBrowser.close();
+      await pupBrowser.disconnect();
     } catch {}
     try {
       await transport.close();
     } catch {}
+    await browser.debugger.detach({ tabId: tab!.id! });
   };
 
   return { page, close };

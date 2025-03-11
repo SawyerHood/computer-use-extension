@@ -20,13 +20,12 @@ export const operate = async ({
   onMessageChange: (message: ResponseInput) => void;
   apiKey: string;
 }) => {
+  const { page, close } = await createPuppeteer();
   try {
     const openai = new OpenAI({
       dangerouslyAllowBrowser: true,
       apiKey: apiKey,
     });
-
-    const { page, close } = await createPuppeteer();
 
     await interactWithAIAssistant({
       page,
@@ -34,10 +33,10 @@ export const operate = async ({
       onMessageChange,
       openai,
     });
-
-    await close();
   } catch (error) {
     console.error("Error in browser session:", error);
+  } finally {
+    await close();
   }
 };
 
