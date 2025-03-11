@@ -2,11 +2,11 @@
 
 A browser extension that provides direct access to ChatGPT Computer Use Agent in your browser. No VM needed.
 
+Brought to you by [dobrowser.io](https://dobrowser.io)
+
 ## Demo
 
-
 https://github.com/user-attachments/assets/5dc7acb0-6e39-4c53-af8d-89209fda5514
-
 
 ## Features
 
@@ -78,8 +78,8 @@ To update your API key:
 ### Development Commands
 
 ```
-npm run dev      # Start development server
-npm run build    # Build for production
+pnpm run dev      # Start development server
+pnpm run build    # Build for production
 ```
 
 ## Privacy
