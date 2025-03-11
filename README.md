@@ -1,4 +1,4 @@
-# CUA Extension
+# Computer Use Extension
 
 A browser extension that provides direct access to ChatGPT Computer Use Agent in your browser. No VM needed.
 
