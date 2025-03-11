@@ -132,9 +132,9 @@ async function injectCursor(page: Page): Promise<void> {
       const cursor = document.createElement("div");
       cursor.id = "ai-custom-cursor";
       cursor.style.position = "fixed";
-      cursor.style.width = "18px";
-      cursor.style.height = "18px";
-      cursor.style.border = "1.5px solid rgba(220, 53, 69, 0.75)";
+      cursor.style.width = "24px";
+      cursor.style.height = "24px";
+      cursor.style.border = "4px solid rgba(220, 53, 69, 0.75)";
       cursor.style.borderRadius = "50%";
       cursor.style.pointerEvents = "none";
       cursor.style.zIndex = "9999";
@@ -146,8 +146,8 @@ async function injectCursor(page: Page): Promise<void> {
       // Add a dot in the center
       const dot = document.createElement("div");
       dot.style.position = "absolute";
-      dot.style.width = "3px";
-      dot.style.height = "3px";
+      dot.style.width = "5px";
+      dot.style.height = "5px";
       dot.style.backgroundColor = "rgba(220, 53, 69, 0.85)";
       dot.style.borderRadius = "50%";
       dot.style.top = "50%";
