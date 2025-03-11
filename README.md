@@ -12,14 +12,23 @@ https://github.com/user-attachments/assets/5dc7acb0-6e39-4c53-af8d-89209fda5514
 
 - Let OpenAI's computer use control your browser directly!
 
-## Installation
+## Installing the extension
+
+- **Chrome/Edge**:
+  - Download the latest release from [here](https://github.com/SawyerHood/computer-use-extension/releases/)
+  - Unzip it
+  - Go to `chrome://extensions/`
+  - Enable "Developer mode"
+  - Click "Load unpacked" and select the unzipped directory
+
+## Development
 
 ### Prerequisites
 
 - Modern web browser (Chrome)
 - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
-### Installing the Extension
+### Developing the Extension
 
 1. Clone this repository:
 
@@ -40,13 +49,7 @@ https://github.com/user-attachments/assets/5dc7acb0-6e39-4c53-af8d-89209fda5514
    pnpm dev
    ```
 
-4. Load the extension in your browser:
-
-   - **Chrome/Edge**:
-
-     - Go to `chrome://extensions/`
-     - Enable "Developer mode"
-     - Click "Load unpacked" and select the `build` directory
+4. A browser should appear with the extension installed
 
 ## Usage
 
