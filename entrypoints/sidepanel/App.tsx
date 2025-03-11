@@ -149,6 +149,22 @@ function App() {
             );
           }
 
+          if (rawMessage.type === "message") {
+            const text = Array.isArray(rawMessage.content)
+              ? rawMessage.content
+                  .filter((c) => c.type === "output_text")
+                  .map((c) => c.text)
+                  .join("\n")
+              : rawMessage.content;
+            return (
+              <div key={index} className="flex justify-start">
+                <div className="max-w-[75%] rounded-lg p-3 bg-gray-700 text-gray-100 rounded-bl-none">
+                  {text}
+                </div>
+              </div>
+            );
+          }
+
           // Handle computer calls
           if (rawMessage.type === "computer_call") {
             const callData = rawMessage as any;

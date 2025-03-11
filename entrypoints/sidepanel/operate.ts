@@ -55,6 +55,9 @@ async function interactWithAIAssistant({
 }: ComputerUseSessionParams) {
   let input: ResponseInput = [...initialMessages];
 
+  // Initialize cursor
+  await injectCursor(page);
+
   if (
     input.length === 1 &&
     typeof input[0] === "object" &&
@@ -116,6 +119,81 @@ async function interactWithAIAssistant({
   }
 }
 
+/**
+ * Injects a custom cursor element into the page if it doesn't already exist
+ */
+async function injectCursor(page: Page): Promise<void> {
+  const cursorExists = await page.evaluate(() => {
+    return !!document.getElementById("ai-custom-cursor");
+  });
+
+  if (!cursorExists) {
+    await page.evaluate(() => {
+      const cursor = document.createElement("div");
+      cursor.id = "ai-custom-cursor";
+      cursor.style.position = "fixed";
+      cursor.style.width = "18px";
+      cursor.style.height = "18px";
+      cursor.style.border = "1.5px solid rgba(220, 53, 69, 0.75)";
+      cursor.style.borderRadius = "50%";
+      cursor.style.pointerEvents = "none";
+      cursor.style.zIndex = "9999";
+      cursor.style.transition = "transform 0.2s ease-out";
+      cursor.style.transform = "translate(0px, 0px)";
+      cursor.style.boxShadow = "0 0 5px rgba(220, 53, 69, 0.3)";
+      cursor.style.opacity = "0.9";
+
+      // Add a dot in the center
+      const dot = document.createElement("div");
+      dot.style.position = "absolute";
+      dot.style.width = "3px";
+      dot.style.height = "3px";
+      dot.style.backgroundColor = "rgba(220, 53, 69, 0.85)";
+      dot.style.borderRadius = "50%";
+      dot.style.top = "50%";
+      dot.style.left = "50%";
+      dot.style.transform = "translate(-50%, -50%)";
+
+      cursor.appendChild(dot);
+      document.body.appendChild(cursor);
+
+      // Initial position off-screen
+      cursor.style.top = "0px";
+      cursor.style.left = "0px";
+    });
+  }
+}
+
+/**
+ * Animates the cursor to a specific position on the page
+ */
+async function animateCursorToPosition(
+  page: Page,
+  x: number,
+  y: number,
+  duration: number = 500
+): Promise<void> {
+  await page.evaluate(
+    ({ x, y, duration }) => {
+      return new Promise<void>((resolve) => {
+        const cursor = document.getElementById("ai-custom-cursor");
+        if (!cursor) return resolve();
+
+        // Show the cursor if it was hidden
+        cursor.style.display = "block";
+
+        // Update position with animation
+        cursor.style.transition = `transform ${duration}ms cubic-bezier(0.2, 0.9, 0.3, 1)`;
+        cursor.style.transform = `translate(${x}px, ${y}px)`;
+
+        // Resolve when animation completes
+        setTimeout(resolve, duration);
+      });
+    },
+    { x, y, duration }
+  );
+}
+
 async function executeAIAction(
   page: Page,
   computerCall: ResponseComputerToolCall
@@ -127,6 +205,9 @@ async function executeAIAction(
       console.log(
         `Clicking at (${action.x}, ${action.y}) with ${action.button} button`
       );
+      // First animate the cursor to the position
+      await animateCursorToPosition(page, action.x, action.y);
+      // Then perform the actual click
       await page.mouse.click(action.x, action.y, {
         button: action.button as MouseButton,
       });
@@ -134,6 +215,7 @@ async function executeAIAction(
 
     case "double_click":
       console.log(`Double clicking at (${action.x}, ${action.y})`);
+      await animateCursorToPosition(page, action.x, action.y);
       await page.mouse.click(action.x, action.y, { clickCount: 2 });
       break;
 
@@ -143,10 +225,14 @@ async function executeAIAction(
           action.path[action.path.length - 1].x
         }, ${action.path[action.path.length - 1].y})`
       );
+      // Animate cursor to start position
+      await animateCursorToPosition(page, action.path[0].x, action.path[0].y);
       await page.mouse.move(action.path[0].x, action.path[0].y);
       await page.mouse.down();
 
+      // Animate along the path
       for (const point of action.path.slice(1)) {
+        await animateCursorToPosition(page, point.x, point.y, 200); // Faster animation for drag points
         await page.mouse.move(point.x, point.y);
       }
 
@@ -164,6 +250,7 @@ async function executeAIAction(
 
     case "move":
       console.log(`Moving mouse to (${action.x}, ${action.y})`);
+      await animateCursorToPosition(page, action.x, action.y);
       await page.mouse.move(action.x, action.y);
       break;
 
@@ -178,6 +265,7 @@ async function executeAIAction(
       console.log(
         `Scrolling by (${action.scroll_x}, ${action.scroll_y}) at position (${action.x}, ${action.y})`
       );
+      await animateCursorToPosition(page, action.x, action.y);
       await page.mouse.move(action.x, action.y);
       await page.mouse.wheel({
         deltaX: action.scroll_x,
