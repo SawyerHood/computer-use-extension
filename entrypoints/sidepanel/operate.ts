@@ -192,7 +192,7 @@ async function executeAIAction(
 
     case "wait":
       console.log("Waiting for page to load/process");
-      await page.waitForNetworkIdle();
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       break;
 
     default:
