@@ -241,11 +241,25 @@ async function executeAIAction(
 
     case "keypress":
       console.log(`Pressing keys: ${action.keys.join(", ")}`);
-      for (const key of action.keys) {
-        await page.keyboard.press(
-          (key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()) as KeyInput
-        );
+
+      const keys = action.keys.map((key) => {
+        if (key === "CMD") {
+          return "Meta";
+        }
+        if (key === "CTRL") {
+          return "Control";
+        }
+        return key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+      });
+
+      for (const key of keys) {
+        await page.keyboard.down(key as KeyInput);
       }
+
+      for (const key of keys) {
+        await page.keyboard.up(key as KeyInput);
+      }
+
       break;
 
     case "move":
