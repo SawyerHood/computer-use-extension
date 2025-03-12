@@ -24,6 +24,6 @@ export default defineConfig({
   manifest: {
     name: "CUA Browser",
     action: {},
-    permissions: ["tabs", "activeTab", "debugger", "storage"],
+    permissions: ["tabs", "activeTab", "debugger", "storage", "tabGroups"],
   },
 });

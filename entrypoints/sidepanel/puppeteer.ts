@@ -4,14 +4,25 @@ import {
 } from "puppeteer-core/lib/esm/puppeteer/puppeteer-core-browser.js";
 
 export async function createPuppeteer() {
-  const tabs = await browser.tabs.query({
-    active: true,
-    currentWindow: true,
+  // Create a new tab
+  const newTab = await browser.tabs.create({
+    url: "https://example.com", // Start with a blank page
+    active: false,
   });
 
-  const tab = tabs[0]!;
+  // Create a tab group called "doobie" and add the tab to it
+  const groupId = await browser.tabs.group({
+    tabIds: [newTab.id!],
+  });
 
-  const transport = await ExtensionTransport.connectTab(tab!.id!);
+  // Set the group's properties
+  await browser.tabGroups.update(groupId, {
+    title: "CUA",
+    color: "purple", // You can choose a different color if preferred
+  });
+
+  // Connect puppeteer to the newly created tab
+  const transport = await ExtensionTransport.connectTab(newTab.id!);
 
   const pupBrowser = await connect({
     transport,
@@ -27,7 +38,13 @@ export async function createPuppeteer() {
     try {
       await transport.close();
     } catch {}
-    await browser.debugger.detach({ tabId: tab!.id! });
+    try {
+      await browser.debugger.detach({ tabId: newTab.id! });
+    } catch {}
+    // Close the tab we created
+    try {
+      await browser.tabs.remove(newTab.id!);
+    } catch {}
   };
 
   return { page, close };

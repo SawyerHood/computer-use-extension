@@ -4,12 +4,21 @@ import {
   Page,
 } from "puppeteer-core/lib/esm/puppeteer/puppeteer-core-browser.js";
 import { OpenAI } from "openai";
+
+import { zodToJsonSchema } from "zod-to-json-schema";
+
 import {
   ResponseInput,
   ResponseComputerToolCall,
   ResponseInputItem,
+  ResponseFunctionToolCall,
 } from "openai/resources/responses/responses.mjs";
 import { createPuppeteer } from "./puppeteer";
+import { z } from "zod";
+
+const goToUrlSchema = z.object({
+  url: z.string(),
+});
 
 export const operate = async ({
   initialMessages,
@@ -95,8 +104,23 @@ async function interactWithAIAssistant({
           display_height: screenshotSize.height,
           environment: "browser", // other possible values: "mac", "windows", "ubuntu"
         },
+        {
+          type: "function",
+          name: "go_to_url",
+          description:
+            "Go to a specific URL. Use this if the current url isn't relevant.",
+          parameters: zodToJsonSchema(goToUrlSchema),
+          strict: true,
+        },
       ],
-      input,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are an assistant tasked with completing a user's request. You have full control over a web browser. If it looks like the current page isn't relevant, use the go_to_url tool to navigate to a new page.",
+        },
+        ...input,
+      ],
       truncation: "auto",
     });
 
@@ -108,23 +132,36 @@ async function interactWithAIAssistant({
       (output) => output.type === "computer_call"
     );
 
-    if (!computerCall) {
-      console.log("No computer call found");
-      break;
-    }
-
-    const computerCallOutput = await executeAIAction(
-      page,
-      computerCall,
-      devicePixelRatio
+    const functionCall = response.output.find(
+      (output) => output.type === "function_call"
     );
 
-    devicePixelRatio = computerCallOutput.devicePixelRatio;
-    screenshotSize = computerCallOutput.screenshotSize;
+    if (computerCall) {
+      const computerCallOutput = await executeAIAction(
+        page,
+        computerCall,
+        devicePixelRatio
+      );
 
-    input.push(computerCallOutput.output);
-    input = [...input];
-    onMessageChange(input);
+      devicePixelRatio = computerCallOutput.devicePixelRatio;
+      screenshotSize = computerCallOutput.screenshotSize;
+
+      input.push(computerCallOutput.output);
+      input = [...input];
+      onMessageChange(input);
+    } else if (functionCall) {
+      const functionCallOutput = await executeFunctionCall(
+        page,
+        functionCall,
+        devicePixelRatio
+      );
+
+      input.push(functionCallOutput.output);
+      onMessageChange(input);
+    } else {
+      console.log("No computer call or function call found");
+      break;
+    }
   }
 }
 
@@ -349,9 +386,6 @@ async function executeAIAction(
 
     case "screenshot":
       console.log("Taking screenshot");
-      const screenshot = await page.screenshot();
-      // Handle screenshot - you could save it to a file or process it
-      console.log("Screenshot taken");
       break;
 
     case "scroll":
@@ -397,9 +431,40 @@ async function executeAIAction(
         type: "computer_screenshot",
         image_url: `data:image/png;base64,${screenshot}`,
       },
+      acknowledged_safety_checks: computerCall.pending_safety_checks,
     },
     screenshotSize,
     devicePixelRatio: window.devicePixelRatio,
+  };
+}
+
+async function executeFunctionCall(
+  page: Page,
+  functionCall: ResponseFunctionToolCall,
+  devicePixelRatio: number
+): Promise<{
+  output: ResponseInputItem.FunctionCallOutput;
+}> {
+  switch (functionCall.name) {
+    case "go_to_url":
+      const parameters = goToUrlSchema.parse(
+        JSON.parse(functionCall.arguments)
+      );
+      await page.goto(parameters.url);
+      break;
+    default:
+      console.log(`Unhandled function call: ${functionCall.name}`);
+      break;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  return {
+    output: {
+      type: "function_call_output",
+      call_id: functionCall.call_id,
+      output: "",
+    },
   };
 }
 
