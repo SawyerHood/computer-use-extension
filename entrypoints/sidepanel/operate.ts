@@ -327,7 +327,7 @@ async function executeAIAction(
       await animateCursorToPosition(page, action.x, action.y);
       // Then perform the actual click
       await page.mouse.click(action.x, action.y, {
-        button: action.button as MouseButton,
+        button: mapButton(action.button),
       });
       break;
 
@@ -480,4 +480,23 @@ async function getScreenshotSize(url: string): Promise<{
       resolve({ width: img.width, height: img.height });
     };
   });
+}
+
+function mapButton(
+  button: ResponseComputerToolCall.Click["button"]
+): MouseButton {
+  switch (button) {
+    case "left":
+      return "left";
+    case "right":
+      return "right";
+    case "wheel":
+      return "middle";
+    case "back":
+      return "back";
+    case "forward":
+      return "forward";
+    default:
+      throw new Error(`Unhandled button: ${button}`);
+  }
 }
