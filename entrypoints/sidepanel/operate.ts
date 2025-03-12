@@ -21,6 +21,8 @@ export const operate = async ({
   apiKey: string;
 }) => {
   const { page, close } = await createPuppeteer();
+
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   try {
     const openai = new OpenAI({
       dangerouslyAllowBrowser: true,
@@ -58,6 +60,14 @@ async function interactWithAIAssistant({
   // Initialize cursor
   await injectCursor(page);
 
+  const screenshot = await page.screenshot({ encoding: "base64" });
+  const screenshotUrl = `data:image/png;base64,${screenshot}`;
+
+  // Get the size of the screenshot url
+  let screenshotSize = await getScreenshotSize(screenshotUrl);
+
+  let devicePixelRatio = window.devicePixelRatio;
+
   if (
     input.length === 1 &&
     typeof input[0] === "object" &&
@@ -66,10 +76,9 @@ async function interactWithAIAssistant({
     input[0].role === "user" &&
     Array.isArray(input[0].content)
   ) {
-    const screenshot = await page.screenshot({ encoding: "base64" });
     input[0].content.push({
       type: "input_image",
-      image_url: `data:image/png;base64,${screenshot}`,
+      image_url: screenshotUrl,
       detail: "high",
     });
     input = [...input];
@@ -77,20 +86,13 @@ async function interactWithAIAssistant({
   }
 
   while (true) {
-    const viewport = await page.evaluate(() => {
-      return {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      };
-    });
-
     const response = await openai.responses.create({
       model: "computer-use-preview",
       tools: [
         {
           type: "computer-preview",
-          display_width: viewport!.width,
-          display_height: viewport!.height,
+          display_width: screenshotSize.width,
+          display_height: screenshotSize.height,
           environment: "browser", // other possible values: "mac", "windows", "ubuntu"
         },
       ],
@@ -111,9 +113,16 @@ async function interactWithAIAssistant({
       break;
     }
 
-    const computerCallOutput = await executeAIAction(page, computerCall);
+    const computerCallOutput = await executeAIAction(
+      page,
+      computerCall,
+      devicePixelRatio
+    );
 
-    input.push(computerCallOutput);
+    devicePixelRatio = computerCallOutput.devicePixelRatio;
+    screenshotSize = computerCallOutput.screenshotSize;
+
+    input.push(computerCallOutput.output);
     input = [...input];
     onMessageChange(input);
   }
@@ -194,11 +203,83 @@ async function animateCursorToPosition(
   );
 }
 
+function adjustActionForDevicePixelRatio(
+  action: ResponseComputerToolCall["action"],
+  devicePixelRatio: number
+): ResponseComputerToolCall["action"] {
+  switch (action.type) {
+    case "click":
+      return {
+        ...action,
+        x: action.x / devicePixelRatio,
+        y: action.y / devicePixelRatio,
+      };
+    case "double_click":
+      return {
+        ...action,
+        x: action.x / devicePixelRatio,
+        y: action.y / devicePixelRatio,
+      };
+    case "drag":
+      return {
+        ...action,
+        path: action.path.map((point) => ({
+          ...point,
+          x: point.x / devicePixelRatio,
+          y: point.y / devicePixelRatio,
+        })),
+      };
+    case "keypress":
+      return {
+        ...action,
+        keys: action.keys.map((key) => key.toLowerCase()),
+      };
+    case "move":
+      return {
+        ...action,
+        x: action.x / devicePixelRatio,
+        y: action.y / devicePixelRatio,
+      };
+
+    case "screenshot":
+      return action;
+
+    case "scroll":
+      return {
+        ...action,
+        scroll_x: action.scroll_x / devicePixelRatio,
+        scroll_y: action.scroll_y / devicePixelRatio,
+        x: action.x / devicePixelRatio,
+        y: action.y / devicePixelRatio,
+      };
+
+    case "type":
+      return action;
+
+    case "wait":
+      return action;
+
+    default:
+      return action;
+  }
+}
+
 async function executeAIAction(
   page: Page,
-  computerCall: ResponseComputerToolCall
-): Promise<ResponseInputItem.ComputerCallOutput> {
-  const action = computerCall.action;
+  computerCall: ResponseComputerToolCall,
+  devicePixelRatio: number
+): Promise<{
+  output: ResponseInputItem.ComputerCallOutput;
+  screenshotSize: {
+    width: number;
+    height: number;
+  };
+  devicePixelRatio: number;
+}> {
+  const action = adjustActionForDevicePixelRatio(
+    computerCall.action,
+    devicePixelRatio
+  );
 
   switch (action.type) {
     case "click":
@@ -265,8 +346,6 @@ async function executeAIAction(
     case "move":
       console.log(`Moving mouse to (${action.x}, ${action.y})`);
       await animateCursorToPosition(page, action.x, action.y);
-      await page.mouse.move(action.x, action.y);
-      break;
 
     case "screenshot":
       console.log("Taking screenshot");
@@ -306,12 +385,34 @@ async function executeAIAction(
 
   const screenshot = await page.screenshot({ encoding: "base64" });
 
+  const screenshotUrl = `data:image/png;base64,${screenshot}`;
+
+  const screenshotSize = await getScreenshotSize(screenshotUrl);
+
   return {
-    call_id: computerCall.call_id,
-    type: "computer_call_output",
     output: {
-      type: "computer_screenshot",
-      image_url: `data:image/png;base64,${screenshot}`,
+      call_id: computerCall.call_id,
+      type: "computer_call_output",
+      output: {
+        type: "computer_screenshot",
+        image_url: `data:image/png;base64,${screenshot}`,
+      },
     },
+    screenshotSize,
+    devicePixelRatio: window.devicePixelRatio,
   };
+}
+
+async function getScreenshotSize(url: string): Promise<{
+  width: number;
+  height: number;
+}> {
+  const img = new Image();
+  img.src = url;
+
+  return new Promise((resolve) => {
+    img.onload = () => {
+      resolve({ width: img.width, height: img.height });
+    };
+  });
 }
